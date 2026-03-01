@@ -3,246 +3,398 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Révisions Immunologie - Lecteur Audio & PDF</title>
-    <!-- Bibliothèques nécessaires -->
+    <title>Révisions Immunologie - G3 BIOMED</title>
+    <!-- Bibliothèque pour convertir le Markdown en HTML -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        /* Style professionnel pour l'impression PDF */
+        /* Style général */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: #333;
-            max-width: 900px;
-            margin: 0 auto;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            min-height: 100vh;
             padding: 20px;
-            background-color: #fff;
         }
-        
-        /* Contrôles audio flottants */
-        .audio-controls {
-            position: sticky;
-            top: 10px;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 50px;
-            padding: 12px 20px;
-            margin-bottom: 30px;
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        /* En-tête avec contrôles */
+        .header {
+            background: linear-gradient(135deg, #0056b3 0%, #007bff 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+
+        /* Barre de contrôle */
+        .controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
             display: flex;
             flex-wrap: wrap;
-            align-items: center;
             gap: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            z-index: 1000;
-            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
-        
-        .audio-controls button {
-            background-color: #007bff;
-            color: white;
+
+        .btn {
+            padding: 12px 25px;
             border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
+            border-radius: 50px;
             font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s;
-            min-width: 120px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        
-        .audio-controls button:hover {
-            background-color: #0056b3;
+
+        .btn-primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+        }
+
+        .btn-primary:hover {
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.4);
         }
-        
-        .audio-controls button.stop {
-            background-color: #dc3545;
-        }
-        
-        .audio-controls button.stop:hover {
-            background-color: #a71d2a;
-        }
-        
-        .audio-controls select {
-            padding: 8px 15px;
-            border-radius: 25px;
-            border: 1px solid #ced4da;
-            font-size: 16px;
-            flex-grow: 1;
-            max-width: 300px;
-        }
-        
-        .status {
-            color: #28a745;
-            font-weight: bold;
-            margin-left: auto;
-        }
-        
-        /* Bouton d'impression */
-        .print-btn {
-            background-color: #6c757d;
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #a71d2a);
             color: white;
-            border: none;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220,53,69,0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #545b62);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108,117,125,0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40,167,69,0.4);
+        }
+
+        .voice-selector {
             padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
+            border-radius: 50px;
+            border: 2px solid #dee2e6;
             font-size: 16px;
-            transition: all 0.3s;
+            min-width: 250px;
+            background: white;
+            cursor: pointer;
         }
-        
-        .print-btn:hover {
-            background-color: #545b62;
+
+        .voice-selector:focus {
+            outline: none;
+            border-color: #007bff;
         }
-        
-        /* Style du contenu Markdown */
-        .markdown-content {
-            margin-top: 20px;
+
+        .status {
+            margin-left: auto;
+            font-weight: 600;
+            color: #28a745;
+            background: #d4edda;
+            padding: 8px 16px;
+            border-radius: 50px;
+            border: 1px solid #c3e6cb;
         }
-        
-        h1, h2, h3 {
+
+        /* Contenu principal */
+        .content {
+            padding: 40px;
+        }
+
+        /* Style du Markdown converti */
+        .markdown-body {
+            font-size: 16px;
+        }
+
+        .markdown-body h1 {
             color: #0056b3;
+            font-size: 2.2em;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 15px;
+            margin: 40px 0 30px;
+        }
+
+        .markdown-body h2 {
+            color: #007bff;
+            font-size: 1.8em;
             border-bottom: 2px solid #dee2e6;
             padding-bottom: 10px;
-            margin-top: 30px;
+            margin: 30px 0 20px;
         }
-        
-        h1 {
-            font-size: 2.2em;
-            text-align: center;
-            border-bottom: 3px solid #007bff;
+
+        .markdown-body h3 {
+            color: #495057;
+            font-size: 1.4em;
+            margin: 25px 0 15px;
         }
-        
-        blockquote {
-            background-color: #f8f9fa;
-            border-left: 5px solid #007bff;
-            padding: 15px;
+
+        /* Style des questions pliables */
+        .markdown-body details {
             margin: 20px 0;
-            border-radius: 0 10px 10px 0;
-        }
-        
-        code {
-            background-color: #e9ecef;
-            padding: 2px 5px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-        }
-        
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 20px 0;
-        }
-        
-        th, td {
+            padding: 20px;
+            background: #f8f9fa;
             border: 1px solid #dee2e6;
-            padding: 12px;
-            text-align: left;
+            border-radius: 15px;
+            transition: all 0.3s ease;
         }
-        
-        th {
-            background-color: #007bff;
-            color: white;
+
+        .markdown-body details:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateX(5px);
         }
-        
-        tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-        
-        details {
-            margin: 15px 0;
-            padding: 10px;
-            background-color: #fff;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-        }
-        
-        summary {
-            font-weight: bold;
+
+        .markdown-body summary {
+            font-weight: 700;
+            font-size: 1.1em;
             color: #0056b3;
             cursor: pointer;
-            padding: 5px;
+            padding: 10px;
+            border-radius: 10px;
+            background: white;
+            border: 1px solid #dee2e6;
         }
-        
-        summary:hover {
-            background-color: #e9ecef;
+
+        .markdown-body summary:hover {
+            background: #e9ecef;
+        }
+
+        .markdown-body details[open] summary {
+            margin-bottom: 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+        }
+
+        .markdown-body blockquote {
+            background: linear-gradient(135deg, #fff, #f8f9fa);
+            border-left: 5px solid #007bff;
+            padding: 15px 25px;
+            margin: 20px 0;
+            border-radius: 0 15px 15px 0;
+            font-style: italic;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .markdown-body th {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            font-weight: 600;
+            padding: 15px;
+            text-align: left;
+        }
+
+        .markdown-body td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .markdown-body tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .markdown-body tr:hover {
+            background: #e9ecef;
+        }
+
+        .markdown-body code {
+            background: #e9ecef;
+            padding: 3px 8px;
             border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            color: #d63384;
         }
-        
+
+        .markdown-body ul, .markdown-body ol {
+            padding-left: 30px;
+            margin: 15px 0;
+        }
+
+        .markdown-body li {
+            margin: 8px 0;
+        }
+
+        /* Pied de page */
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+        }
+
         /* Style pour l'impression PDF */
         @media print {
-            .audio-controls, .print-btn {
-                display: none;
+            .controls, .footer, .btn {
+                display: none !important;
             }
             
-            body {
+            .container {
+                box-shadow: none;
+                margin: 0;
                 padding: 0;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .markdown-body details {
+                border: none;
+                background: none;
+                page-break-inside: avoid;
+            }
+            
+            .markdown-body summary {
+                list-style: none;
+                background: none;
+                border: none;
+                color: black;
+                font-weight: bold;
+            }
+            
+            .markdown-body details[open] summary {
+                background: none;
+                color: black;
+            }
+            
+            .markdown-body h1, .markdown-body h2 {
+                page-break-after: avoid;
+            }
+            
+            .header {
+                background: white;
+                color: black;
+                border-bottom: 2px solid #007bff;
             }
             
             a {
                 text-decoration: none;
                 color: black;
             }
-            
-            h1, h2, h3 {
-                page-break-after: avoid;
-            }
-            
-            details {
-                border: none;
-                background: none;
-            }
-            
-            summary {
-                list-style: none;
-            }
-            
-            summary::-webkit-details-marker {
-                display: none;
-            }
         }
     </style>
 </head>
 <body>
-    <!-- Contrôles audio -->
-    <div class="audio-controls">
-        <button id="playBtn" onclick="toggleSpeech()">🔊 Lire le document</button>
-        <button id="stopBtn" class="stop" onclick="stopSpeech()" style="display: none;">⏹ Arrêter</button>
-        <select id="voiceSelect"></select>
-        <span id="status" class="status">Prêt</span>
-        <button class="print-btn" onclick="window.print()">🖨 Imprimer / PDF</button>
+    <div class="container">
+        <div class="header">
+            <h1>Révisions Immunologie</h1>
+            <p>G3 BIOMED - Objectif : 80% de réussite</p>
+            <p style="font-size: 0.9em; margin-top: 10px;"> 42 questions - 9 chapitres - Réponses détaillées</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="toggleSpeech()">
+                <span id="playIcon">🔊</span> <span id="playText">Lire le document</span>
+            </button>
+            <button class="btn btn-danger" onclick="stopSpeech()" id="stopBtn" style="display: none;">
+                ⏹ Arrêter
+            </button>
+            
+            <select id="voiceSelect" class="voice-selector"></select>
+            
+            <button class="btn btn-secondary" onclick="pauseSpeech()" id="pauseBtn" style="display: none;">
+                ⏸ Pause
+            </button>
+            <button class="btn btn-success" onclick="resumeSpeech()" id="resumeBtn" style="display: none;">
+                ▶ Reprendre
+            </button>
+            
+            <span id="status" class="status">✅ Prêt</span>
+            
+            <button class="btn btn-secondary" onclick="window.print()">
+                🖨 Imprimer / PDF
+            </button>
+        </div>
+
+        <div id="content" class="content markdown-body"></div>
+
+        <div class="footer">
+            <p>Document de révision complet - Université de Kisangani, G3 BIOMED 2019-2020</p>
+            <p style="font-size: 0.85em;"> Cliquez sur les questions pour voir les réponses | 🔊 Utilisez les contrôles audio pour écouter</p>
+        </div>
     </div>
 
-    <!-- Conteneur pour le Markdown converti -->
-    <div id="content" class="markdown-content"></div>
-
     <script>
-        // Synthèse vocale
+        // === SYSTÈME DE SYNTHÈSE VOCALE ===
         const synth = window.speechSynthesis;
         let utterance = null;
         let isPlaying = false;
+        let isPaused = false;
         let currentText = '';
         
-        // Initialisation des voix
+        // Charger les voix disponibles
         function loadVoices() {
             const voices = synth.getVoices();
             const voiceSelect = document.getElementById('voiceSelect');
             voiceSelect.innerHTML = '';
             
-            // Filtrer les voix françaises
+            // Priorité aux voix françaises
             const frenchVoices = voices.filter(voice => voice.lang.includes('fr'));
             const otherVoices = voices.filter(voice => !voice.lang.includes('fr'));
             
-            // Ajouter les voix françaises d'abord
-            frenchVoices.forEach(voice => {
+            [...frenchVoices, ...otherVoices].forEach(voice => {
                 const option = document.createElement('option');
-                option.textContent = `${voice.name} (${voice.lang}) - Français`;
-                option.value = voice.name;
-                voiceSelect.appendChild(option);
-            });
-            
-            // Ajouter les autres voix
-            otherVoices.forEach(voice => {
-                const option = document.createElement('option');
-                option.textContent = `${voice.name} (${voice.lang})`;
+                option.textContent = `${voice.name} (${voice.lang})${voice.lang.includes('fr') ? ' 🇫🇷' : ''}`;
                 option.value = voice.name;
                 voiceSelect.appendChild(option);
             });
@@ -261,16 +413,19 @@
         
         function toggleSpeech() {
             if (isPlaying) {
-                stopSpeech();
+                if (isPaused) {
+                    resumeSpeech();
+                } else {
+                    pauseSpeech();
+                }
             } else {
                 startSpeech();
             }
         }
         
         function startSpeech() {
-            stopSpeech(); // Arrêter toute lecture en cours
+            stopSpeech();
             
-            // Récupérer le texte du contenu
             const content = document.getElementById('content');
             currentText = content.innerText || content.textContent;
             
@@ -282,48 +437,85 @@
             utterance = new SpeechSynthesisUtterance(currentText);
             utterance.voice = getSelectedVoice();
             utterance.lang = 'fr-FR';
-            utterance.rate = 0.9; // Vitesse légèrement plus lente
+            utterance.rate = 0.9;
             utterance.pitch = 1;
             
             utterance.onstart = () => {
                 isPlaying = true;
+                isPaused = false;
                 document.getElementById('playBtn').style.display = 'none';
                 document.getElementById('stopBtn').style.display = 'inline-block';
+                document.getElementById('pauseBtn').style.display = 'inline-block';
+                document.getElementById('resumeBtn').style.display = 'none';
+                document.getElementById('playIcon').textContent = '⏸';
+                document.getElementById('playText').textContent = 'Pause';
                 document.getElementById('status').textContent = '🔊 Lecture en cours...';
             };
             
             utterance.onend = () => {
-                isPlaying = false;
-                document.getElementById('stopBtn').style.display = 'none';
-                document.getElementById('playBtn').style.display = 'inline-block';
+                resetControls();
                 document.getElementById('status').textContent = '✅ Lecture terminée';
             };
             
             utterance.onerror = (event) => {
-                console.error('Erreur de synthèse vocale:', event);
-                isPlaying = false;
-                document.getElementById('stopBtn').style.display = 'none';
-                document.getElementById('playBtn').style.display = 'inline-block';
+                console.error('Erreur:', event);
+                resetControls();
                 document.getElementById('status').textContent = '❌ Erreur de lecture';
             };
             
+            utterance.onpause = () => {
+                isPaused = true;
+                document.getElementById('pauseBtn').style.display = 'none';
+                document.getElementById('resumeBtn').style.display = 'inline-block';
+                document.getElementById('playIcon').textContent = '▶';
+                document.getElementById('playText').textContent = 'Reprendre';
+                document.getElementById('status').textContent = '⏸ Lecture en pause';
+            };
+            
+            utterance.onresume = () => {
+                isPaused = false;
+                document.getElementById('pauseBtn').style.display = 'inline-block';
+                document.getElementById('resumeBtn').style.display = 'none';
+                document.getElementById('playIcon').textContent = '⏸';
+                document.getElementById('playText').textContent = 'Pause';
+                document.getElementById('status').textContent = '🔊 Lecture en cours...';
+            };
+            
             synth.speak(utterance);
+        }
+        
+        function pauseSpeech() {
+            if (synth.speaking && !synth.paused) {
+                synth.pause();
+            }
+        }
+        
+        function resumeSpeech() {
+            if (synth.speaking && synth.paused) {
+                synth.resume();
+            }
         }
         
         function stopSpeech() {
             if (synth.speaking) {
                 synth.cancel();
             }
-            isPlaying = false;
-            document.getElementById('stopBtn').style.display = 'none';
-            document.getElementById('playBtn').style.display = 'inline-block';
-            document.getElementById('status').textContent = '⏹ Lecture arrêtée';
+            resetControls();
         }
         
-        // Contenu Markdown complet
-        const markdownContent = `
-        
-       # Révision d'Immunologie - G3 BIOMED
+        function resetControls() {
+            isPlaying = false;
+            isPaused = false;
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.getElementById('resumeBtn').style.display = 'none';
+            document.getElementById('playBtn').style.display = 'inline-block';
+            document.getElementById('playIcon').textContent = '🔊';
+            document.getElementById('playText').textContent = 'Lire le document';
+        }
+
+        // === CONTENU MARKDOWN COMPLET ===
+        const markdownContent = `# Révision d'Immunologie - G3 BIOMED
 **Objectif : 80% de réussite**
 
 Ce document contient l'intégralité du questionnaire de révision, organisé par chapitre, avec les réponses détaillées fournies immédiatement après chaque question pour un apprentissage actif.
@@ -705,7 +897,7 @@ Ce document contient l'intégralité du questionnaire de révision, organisé pa
 <summary>39. Expliquez le principe de la réaction d'agglutination. Quelle classe d'anticorps est la plus efficace ?</summary>
 
 *   **Principe :** Mise en évidence d'anticorps ou d'antigènes par la formation d'amas visibles (agglutinats). Cela se produit lorsque l'antigène est sous forme particulaire (sur une cellule, une bactérie, une particule de latex). Les anticorps font le pont entre ces particules.
-*   **Classe d'anticorps la plus efficace :** Les **IgM** sont de très puissants agglutinants car leur structure pentamérique leur confère une grande avidité (10 sites de liaison).
+*   **Classe d'anticorps la plus efficace :** Les **IgM** sont de puissants agglutinants car leur structure pentamérique leur confère une grande avidité (10 sites de liaison).
 </details>
 
 <details>
@@ -734,10 +926,31 @@ Ce document contient l'intégralité du questionnaire de révision, organisé pa
 *   **Indication principale :** La sérothérapie est utilisée à but **thérapeutique** (post-exposition) ou en prophylaxie d'urgence. Elle procure une protection **immédiate** mais **temporaire**. (Ex: sérum antivenimeux, sérum antitétanique après une blessure chez un non-vacciné).
 </details>
 
+---
+
+## Glossaire rapide
+
+| Terme | Définition |
+|:------|:-----------|
+| **PAMP** | Motif moléculaire associé aux pathogènes |
+| **PRR** | Récepteur de reconnaissance de motifs |
+| **CMH** | Complexe Majeur d'Histocompatibilité |
+| **CPA** | Cellule Présentatrice d'Antigène |
+| **Ig** | Immunoglobuline (anticorps) |
+| **LT** | Lymphocyte T |
+| **LB** | Lymphocyte B |
+| **IL** | Interleukine |
+| **TNF** | Tumor Necrosis Factor |
+| **IFN** | Interféron |
+| **NK** | Natural Killer (cellule tueuse naturelle) |
+| **SCID** | Déficit Immunitaire Combiné Sévère |
+| **TDR** | Test de Diagnostic Rapide |
 `;
 
-        // Conversion et affichage
-        document.getElementById('content').innerHTML = marked.parse(markdownContent);
+        // Conversion et affichage du Markdown
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('content').innerHTML = marked.parse(markdownContent);
+        });
     </script>
 </body>
-</html
+</html>
