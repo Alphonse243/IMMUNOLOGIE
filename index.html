@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Révisions Immunologie - Lecteur Audio & PDF</title>
+    <!-- Bibliothèques nécessaires -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Style professionnel pour l'impression PDF */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+        }
+        
+        /* Contrôles audio flottants */
+        .audio-controls {
+            position: sticky;
+            top: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 50px;
+            padding: 12px 20px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .audio-controls button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            min-width: 120px;
+        }
+        
+        .audio-controls button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+        
+        .audio-controls button.stop {
+            background-color: #dc3545;
+        }
+        
+        .audio-controls button.stop:hover {
+            background-color: #a71d2a;
+        }
+        
+        .audio-controls select {
+            padding: 8px 15px;
+            border-radius: 25px;
+            border: 1px solid #ced4da;
+            font-size: 16px;
+            flex-grow: 1;
+            max-width: 300px;
+        }
+        
+        .status {
+            color: #28a745;
+            font-weight: bold;
+            margin-left: auto;
+        }
+        
+        /* Bouton d'impression */
+        .print-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .print-btn:hover {
+            background-color: #545b62;
+        }
+        
+        /* Style du contenu Markdown */
+        .markdown-content {
+            margin-top: 20px;
+        }
+        
+        h1, h2, h3 {
+            color: #0056b3;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+        
+        h1 {
+            font-size: 2.2em;
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+        }
+        
+        blockquote {
+            background-color: #f8f9fa;
+            border-left: 5px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        code {
+            background-color: #e9ecef;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        details {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+        
+        summary {
+            font-weight: bold;
+            color: #0056b3;
+            cursor: pointer;
+            padding: 5px;
+        }
+        
+        summary:hover {
+            background-color: #e9ecef;
+            border-radius: 5px;
+        }
+        
+        /* Style pour l'impression PDF */
+        @media print {
+            .audio-controls, .print-btn {
+                display: none;
+            }
+            
+            body {
+                padding: 0;
+            }
+            
+            a {
+                text-decoration: none;
+                color: black;
+            }
+            
+            h1, h2, h3 {
+                page-break-after: avoid;
+            }
+            
+            details {
+                border: none;
+                background: none;
+            }
+            
+            summary {
+                list-style: none;
+            }
+            
+            summary::-webkit-details-marker {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Contrôles audio -->
+    <div class="audio-controls">
+        <button id="playBtn" onclick="toggleSpeech()">🔊 Lire le document</button>
+        <button id="stopBtn" class="stop" onclick="stopSpeech()" style="display: none;">⏹ Arrêter</button>
+        <select id="voiceSelect"></select>
+        <span id="status" class="status">Prêt</span>
+        <button class="print-btn" onclick="window.print()">🖨 Imprimer / PDF</button>
+    </div>
+
+    <!-- Conteneur pour le Markdown converti -->
+    <div id="content" class="markdown-content"></div>
+
+    <script>
+        // Synthèse vocale
+        const synth = window.speechSynthesis;
+        let utterance = null;
+        let isPlaying = false;
+        let currentText = '';
+        
+        // Initialisation des voix
+        function loadVoices() {
+            const voices = synth.getVoices();
+            const voiceSelect = document.getElementById('voiceSelect');
+            voiceSelect.innerHTML = '';
+            
+            // Filtrer les voix françaises
+            const frenchVoices = voices.filter(voice => voice.lang.includes('fr'));
+            const otherVoices = voices.filter(voice => !voice.lang.includes('fr'));
+            
+            // Ajouter les voix françaises d'abord
+            frenchVoices.forEach(voice => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang}) - Français`;
+                option.value = voice.name;
+                voiceSelect.appendChild(option);
+            });
+            
+            // Ajouter les autres voix
+            otherVoices.forEach(voice => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.value = voice.name;
+                voiceSelect.appendChild(option);
+            });
+        }
+        
+        loadVoices();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
+        
+        function getSelectedVoice() {
+            const selectedName = document.getElementById('voiceSelect').value;
+            const voices = synth.getVoices();
+            return voices.find(voice => voice.name === selectedName) || voices[0];
+        }
+        
+        function toggleSpeech() {
+            if (isPlaying) {
+                stopSpeech();
+            } else {
+                startSpeech();
+            }
+        }
+        
+        function startSpeech() {
+            stopSpeech(); // Arrêter toute lecture en cours
+            
+            // Récupérer le texte du contenu
+            const content = document.getElementById('content');
+            currentText = content.innerText || content.textContent;
+            
+            if (!currentText.trim()) {
+                alert('Aucun texte à lire');
+                return;
+            }
+            
+            utterance = new SpeechSynthesisUtterance(currentText);
+            utterance.voice = getSelectedVoice();
+            utterance.lang = 'fr-FR';
+            utterance.rate = 0.9; // Vitesse légèrement plus lente
+            utterance.pitch = 1;
+            
+            utterance.onstart = () => {
+                isPlaying = true;
+                document.getElementById('playBtn').style.display = 'none';
+                document.getElementById('stopBtn').style.display = 'inline-block';
+                document.getElementById('status').textContent = '🔊 Lecture en cours...';
+            };
+            
+            utterance.onend = () => {
+                isPlaying = false;
+                document.getElementById('stopBtn').style.display = 'none';
+                document.getElementById('playBtn').style.display = 'inline-block';
+                document.getElementById('status').textContent = '✅ Lecture terminée';
+            };
+            
+            utterance.onerror = (event) => {
+                console.error('Erreur de synthèse vocale:', event);
+                isPlaying = false;
+                document.getElementById('stopBtn').style.display = 'none';
+                document.getElementById('playBtn').style.display = 'inline-block';
+                document.getElementById('status').textContent = '❌ Erreur de lecture';
+            };
+            
+            synth.speak(utterance);
+        }
+        
+        function stopSpeech() {
+            if (synth.speaking) {
+                synth.cancel();
+            }
+            isPlaying = false;
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('playBtn').style.display = 'inline-block';
+            document.getElementById('status').textContent = '⏹ Lecture arrêtée';
+        }
+        
+        // Contenu Markdown complet
+        const markdownContent = `
+        
+       # Révision d'Immunologie - G3 BIOMED
+**Objectif : 80% de réussite**
+
+Ce document contient l'intégralité du questionnaire de révision, organisé par chapitre, avec les réponses détaillées fournies immédiatement après chaque question pour un apprentissage actif.
+
+---
+
+## Comment utiliser ce document ?
+
+1.  **Lecture active :** Lisez la question, essayez d'y répondre mentalement, puis déroulez la réponse cachée (ci-dessous) pour vérifier.
+2.  **Auto-évaluation :** Utilisez la version questionnaire seul (fournie précédemment) pour vous tester, puis revenez à ce fichier pour la correction.
+3.  **Fiches de révision :** Ce format est idéal pour une révision rapide avant l'examen.
+
+---
+
+## Chapitre 1 : Généralités et Histoire de l'Immunologie
+
+<details>
+<summary>1. Définissez les termes suivants : Immunité, Système immunitaire, Réponse immunitaire, Immunologie.</summary>
+
+*   **Immunité :** Résistance aux maladies, plus spécifiquement aux maladies infectieuses.
+*   **Système immunitaire :** Ensemble des cellules, tissus et molécules qui concourent à opposer une résistance aux infections.
+*   **Réponse immunitaire :** Réaction coordonnée de ces cellules et molécules contre les germes pathogènes.
+*   **Immunologie (définition large) :** Science de la reconnaissance du soi et du non-soi, et de la gestion du danger.
+</details>
+
+<details>
+<summary>2. Quelle est la différence entre une immunité active et une immunité passive ? Donnez un exemple pour chaque.</summary>
+
+*   **Immunité Active :** L'individu produit lui-même ses effecteurs (anticorps, cellules T) après contact avec l'antigène.
+    *   *Exemple :* Après une infection naturelle (ex: rougeole) ou après une vaccination.
+*   **Immunité Passive :** L'individu reçoit des effecteurs (anticorps) produits par un autre organisme.
+    *   *Exemple :* Transmission d'anticorps de la mère au fœtus via le placenta, ou injection de sérum (sérothérapie).
+</details>
+
+<details>
+<summary>3. Définissez les concepts de "soi", "soi modifié" et "non-soi" en donnant un exemple pour chacun.</summary>
+
+*   **Le soi :** Tout constituant moléculaire ou cellulaire normal de l'organisme. (Ex: une protéine de ses propres cellules).
+*   **Le soi modifié :** Constituant biologique de l'organisme qui n'exerce plus sa fonction initiale ou dont la structure a été altérée. (Ex: une cellule tumorale, une cellule infectée par un virus).
+*   **Le non-soi :** Tout élément exogène (étranger) à l'organisme. (Ex: une bactérie, un virus, un pollen).
+</details>
+
+<details>
+<summary>4. Quel est le lien entre la variole, la vaccine et Pasteur dans l'histoire de l'immunologie ?</summary>
+
+*   La **variolisation** (Chine, Turquie) était une pratique ancienne consistant à inoculer la variole pour protéger contre la forme grave de la maladie.
+*   La **vaccine** (Jenner) utilisait le virus de la variole de la vache (moins dangereux pour l'homme) pour protéger contre la variole humaine.
+*   **Pasteur** a généralisé ce principe en créant le premier vaccin contre la rage (1885). Il a inventé le terme "vaccin" en l'honneur des travaux de Jenner, marquant ainsi la naissance de l'immunologie en tant que science.
+</details>
+
+<details>
+<summary>5. Nommez et caractérisez brièvement les cinq périodes de l'histoire de l'immunologie.</summary>
+
+1.  **Période Empirique :** Observations anciennes (ex: description de l'immunité par Thucydide, variolisation en Chine).
+2.  **Période Pastorienne :** Individualisation de l'immunologie grâce aux travaux de Pasteur sur la vaccination.
+3.  **Période Immunochimique :** Étude de la structure et de la fonction des anticorps.
+4.  **Période Immunologie Cellulaire :** Découverte du rôle des différentes cellules (lymphocytes B et T) dans la réponse immunitaire.
+5.  **Période Immunologie Moléculaire (ou Génétique) :** Compréhension des mécanismes moléculaires (récepteurs, CMH, cytokines) et génétiques.
+</details>
+
+---
+
+## Chapitre 2 : Composants et Fonction du Système Immunitaire (Focus sur l'Innée)
+
+<details>
+<summary>6. Que signifient les acronymes PAMP et PRR ? Expliquez leur rôle dans la reconnaissance immunitaire.</summary>
+
+*   **PAMP** (Pathogen Associated Molecular Patterns) : Motifs moléculaires associés aux pathogènes. Ce sont des structures conservées et essentielles à la survie des micro-organismes (ex: LPS des bactéries Gram -, ARN double brin des virus).
+*   **PRR** (Pattern Recognition Receptors) : Récepteurs de reconnaissance de motifs moléculaires. Ils sont exprimés par les cellules de l'immunité innée et reconnaissent les PAMP.
+*   **Rôle :** L'interaction PRR-PAMP est la clé de voûte de la reconnaissance du "non-soi" par l'immunité innée. Elle déclenche l'activation des cellules et la réponse inflammatoire.
+</details>
+
+<details>
+<summary>7. Citez les quatre grandes familles de PRR et donnez un exemple de PAMP pour chacune.</summary>
+
+1.  **TLR (Toll-like receptors) :** Reconnaissent une grande variété de PAMP (LPS, flagelline, ARN viral, etc.) à la surface cellulaire ou dans les endosomes.
+2.  **NLR (NOD-like receptors) :** Récepteurs cytoplasmiques reconnaissant des PAMP (ex: peptidoglycanes) ou des signaux de danger.
+3.  **RLR (RIG-I-like receptors) :** Récepteurs cytoplasmiques spécialisés dans la reconnaissance des virus à ARN (ex: ARN double brin).
+4.  **Récepteurs membranaires (éboueurs, lectiniques) :** Favorisent la phagocytose en reconnaissant des motifs comme le mannose (sur les levures) ou des LDL oxydées.
+</details>
+
+<details>
+<summary>8. Citez au moins cinq composants humoraux (solubles) de l'immunité innée.</summary>
+
+*   Le système du **complément**
+*   Les **protéines de la phase aiguë** (dont la CRP)
+*   Les **cytokines** (IL-1, IL-6, TNFα, interférons)
+*   Le **lysozyme**
+*   Les **défensines**
+*   La **lactoferrine**
+</details>
+
+<details>
+<summary>9. Quels sont le rôle principal, les trois voies d'activation, le composant central et les trois conséquences majeures de l'activation du complément ?</summary>
+
+*   **Rôle principal :** Agir en complément des anticorps pour éliminer les pathogènes.
+*   **Trois voies d'activation :** Voie classique (dépendante des Ac), voie des lectines (dépendante de la lecture liant le mannose), voie alterne (dépendante de la surface du pathogène).
+*   **Composant central :** La protéine **C3**.
+*   **Trois conséquences majeures :**
+    1.  **Lyse** des pathogènes (par le Complexe d'Attaque Membranaire - CAM).
+    2.  **Inflammation** (via les anaphylatoxines C3a et C5a).
+    3.  **Opsonisation** (marquage) des pathogènes pour faciliter la phagocytose (via le fragment C3b).
+</details>
+
+<details>
+<summary>10. Qu'est-ce qu'une cytokine ? Nommez trois cytokines de l'immunité innée et donnez une action biologique pour chacune.</summary>
+
+*   **Définition :** Une cytokine est un messager intercellulaire, non spécifique d'un antigène, qui agit en cascade pour orchestrer la réponse immunitaire et l'inflammation.
+*   **Exemples :**
+    *   **IL-1 (Interleukine-1) :** Provoque la fièvre, recrute les cellules inflammatoires.
+    *   **TNFα (Tumor Necrosis Factor alpha) :** Active l'inflammation locale et systémique (peut causer la fièvre et le choc), induit la fièvre.
+    *   **IL-6 :** Stimule la production des protéines de la phase aiguë par le foie.
+    *   **IFNα/β (Interférons de type I) :** Bloquent la réplication virale.
+</details>
+
+<details>
+<summary>11. Quels sont les trois rôles majeurs des protéines de la phase aiguë (comme la CRP) ?</summary>
+
+1.  **Opsonisation :** Elles se fixent à la surface des pathogènes pour les marquer et faciliter leur élimination par les phagocytes.
+2.  **Activation :** Elles activent le système du complément.
+3.  **Régulation :** Elles exercent un effet de rétrocontrôle négatif sur l'inflammation pour limiter les dommages tissulaires et favoriser la cicatrisation.
+</details>
+
+<details>
+<summary>12. Décrivez les signes cardinaux de l'inflammation aiguë et la séquence des événements qui s'y produisent.</summary>
+
+*   **Quatre signes cardinaux :** **Rougeur**, **Chaleur**, **Tuméfaction** (œdème), **Douleur**. (Parfois un 5e : perte de fonction).
+*   **Séquence des événements :**
+    1.  **Vasodilatation** : Augmentation du diamètre des vaisseaux (responsable de la rougeur et de la chaleur).
+    2.  **Augmentation de la perméabilité vasculaire** : Les vaisseaux deviennent "fuyants", ce qui permet au liquide (plasma) de s'accumuler dans les tissus (responsable de l'œdème).
+    3.  **Mobilisation phagocytaire** : Les leucocytes (PN, monocytes) adhèrent aux parois des vaisseaux (**margination**), traversent la paroi (**diapédèse**) et migrent vers le foyer infectieux (**chimiotactisme**).
+</details>
+
+<details>
+<summary>13. La fièvre est-elle toujours un mauvais signe ? Citez deux effets positifs et la voie principale de son induction.</summary>
+
+*   **Non**, la fièvre est souvent un mécanisme de défense bénéfique.
+*   **Effets positifs :**
+    *   Séquestration du fer et du zinc (nécessaires à la multiplication bactérienne).
+    *   Augmentation de la vitesse des réactions de réparation cellulaire.
+    *   Amélioration de l'efficacité des interférons et de l'activité des cellules immunitaires.
+*   **Voie principale d'induction :** Voie **prostaglandines-dépendante**. Les pyrogènes endogènes (comme l'IL-1) agissent sur l'hypothalamus via la production de prostaglandine E2 (PGE2).
+</details>
+
+<details>
+<summary>14. Récapitulatif : Citez six composants ou mécanismes clés de l'immunité innée.</summary>
+
+1.  Barrières physico-chimiques (peau, mucus, pH acide).
+2.  Facteurs humoraux solubles (lysozyme, lactoferrine, défensines).
+3.  Cellules phagocytaires (polynucléaires neutrophiles, macrophages).
+4.  Système du complément.
+5.  Cytokines pro-inflammatoires (TNFα, IL-1).
+6.  Cellules tueuses naturelles (NK).
+</details>
+
+---
+
+## Chapitre 3 : L'Immunité Adaptative - Concepts Généraux et Antigènes
+
+<details>
+<summary>15. Quelles sont les deux caractéristiques fondamentales qui distinguent l'immunité adaptative de l'immunité innée ?</summary>
+
+1.  **La spécificité :** La réponse est dirigée contre un antigène particulier.
+2.  **La mémoire :** Une seconde rencontre avec le même antigène induit une réponse plus rapide et plus forte.
+</details>
+
+<details>
+<summary>16. Qu'est-ce qu'un antigène ? Quelle est la différence entre un antigène complet et un haptène ? Donnez un exemple d'haptène.</summary>
+
+*   **Antigène :** Toute molécule capable d'être reconnue par le système immunitaire adaptatif (antigénicité) et d'y déclencher une réponse (immunogénicité).
+*   **Antigène complet :** Possède à la fois l'immunogénicité et l'antigénicité. (Ex: un microbe).
+*   **Haptène :** Est antigénique (peut être reconnu) mais pas immunogène (ne déclenche pas de réponse) tout seul. Il doit se fixer à une protéine porteuse de l'organisme pour le devenir. (Ex: le gluten, le poison de sumac, certains médicaments comme la pénicilline).
+</details>
+
+<details>
+<summary>17. Quelle est la différence entre immunogénicité et antigénicité ?</summary>
+
+*   **Immunogénicité :** Capacité d'une substance à **induire** une réponse immunitaire (production d'anticorps ou de cellules T).
+*   **Antigénicité :** Capacité d'une substance à se **lier spécifiquement** aux produits de la réponse immunitaire (anticorps ou récepteurs des lymphocytes T).
+</details>
+
+<details>
+<summary>18. Qu'est-ce qu'un épitope ?</summary>
+
+*   Un **épitope** (ou déterminant antigénique) est la partie spécifique de l'antigène qui est reconnue par un anticorps ou un récepteur de lymphocyte T (TCR). Un antigène peut porter plusieurs épitopes.
+</details>
+
+---
+
+## Chapitre 4 : Cellules et Organes de l'Immunité Adaptative
+
+<details>
+<summary>19. Où les lymphocytes T et B acquièrent-ils leur immunocompétence (maturation) ?</summary>
+
+*   **Lymphocytes T** : Maturent dans le **thymus**.
+*   **Lymphocytes B** : Maturent dans la **moelle osseuse**.
+</details>
+
+<details>
+<summary>20. Qu'est-ce qu'une cellule présentatrice d'antigène (CPA) ? Nommez les trois CPA professionnelles.</summary>
+
+*   **CPA :** Cellule qui capture un antigène, le dégrade en peptides, et le présente à sa surface, lié à une molécule du CMH, aux lymphocytes T.
+*   **Les trois CPA professionnelles :** Les **cellules dendritiques**, les **macrophages** et les **lymphocytes B**.
+</details>
+
+<details>
+<summary>21. Expliquez brièvement le principe de la théorie de la sélection clonale.</summary>
+
+*   Avant même de rencontrer un antigène, l'organisme possède une immense bibliothèque de clones de lymphocytes, chaque clone ayant un récepteur unique pour un antigène spécifique. Lorsqu'un antigène pénètre dans l'organisme, il se lie au récepteur du clone qui lui correspond, ce qui active ce clone. Ce dernier va alors proliférer (produire de nombreuses copies de lui-même) et se différencier en cellules effectrices (pour éliminer l'antigène) et en cellules mémoire (pour une protection future).
+</details>
+
+---
+
+## Chapitre 5 : Anticorps et Réponse Humorale
+
+<details>
+<summary>22. Décrivez la structure de base d'une molécule d'anticorps (immunoglobuline).</summary>
+
+*   Une molécule d'anticorps a une forme de **"Y"**. Elle est composée de **quatre chaînes polypeptidiques** : deux chaînes **lourdes (H)** identiques et deux chaînes **légères (L)** identiques, reliées entre elles par des ponts disulfures.
+*   Chaque chaîne possède une **région variable (V)** à son extrémité N-terminale (qui forme le site de liaison à l'antigène) et une **région constante (C)** (qui détermine la classe de l'anticorps et ses fonctions effectrices).
+</details>
+
+<details>
+<summary>23. Nommez les 5 classes (isotypes) d'immunoglobulines. Pour les IgG et les IgA, détaillez leur(s) rôle(s) principal(aux) et leur localisation.</summary>
+
+*   Les 5 classes sont : **IgG, IgA, IgM, IgD, IgE**.
+*   **IgG :**
+    *   *Localisation :* Principalement dans le **sang et la lymphe** (75-85% des Ac circulants).
+    *   *Rôle :* Neutralisation, opsonisation, activation du complément. C'est le principal anticorps de la réponse secondaire. **Traverse le placenta**, conférant une immunité passive au nouveau-né.
+*   **IgA :**
+    *   *Localisation :* Principalement dans les **sécrétions** (salive, larmes, lait maternel, mucus intestinal et respiratoire). On les trouve sous forme dimérique (IgA sécrétoires).
+    *   *Rôle :* Assurer l'**immunité des muqueuses** en empêchant l'attachement et la pénétration des pathogènes (neutralisation locale).
+</details>
+
+<details>
+<summary>24. Expliquez les concepts d'affinité, d'avidité et de réaction croisée dans le contexte de la liaison antigène-anticorps.</summary>
+
+*   **Affinité :** Force de la liaison entre **un** site de liaison de l'anticorps et **un** épitope de l'antigène.
+*   **Aavidité :** Force totale de liaison entre un anticorps (avec ses deux sites de liaison) et un antigène (qui porte plusieurs épitopes). C'est la somme des affinités. Plus un anticorps est multivalent (ex: IgM), plus son avidité est élevée.
+*   **Réaction croisée :** La capacité d'un anticorps dirigé contre un antigène spécifique à se lier à un autre antigène de structure similaire.
+</details>
+
+<details>
+<summary>25. Comparez la réponse immunitaire primaire et la réponse secondaire.</summary>
+
+| Caractéristique | Réponse Primaire | Réponse Secondaire |
+| :--- | :--- | :--- |
+| **Délai d'apparition** | Long (5-10 jours) | Court (1-3 jours) |
+| **Intensité** | Faible | Forte |
+| **Anticorps produit** | IgM d'abord, puis IgG plus tard | Production massive et rapide d'**IgG** |
+</details>
+
+<details>
+<summary>26. Comment les IgA sécrétoires (IgA-S) protègent-elles les muqueuses ?</summary>
+
+*   Les IgA-S sont transportées à travers les cellules épithéliales pour être libérées dans la lumière des organes (intestin, voies respiratoires).
+*   Elles se lient aux microbes et aux antigènes présents, les neutralisent et les empêchent de se fixer et de traverser la barrière épithéliale. C'est le mécanisme d'**exclusion immune**.
+</details>
+
+---
+
+## Chapitre 6 : Réponse Immunitaire à Médiation Cellulaire (CMH et Lymphocytes T)
+
+<details>
+<summary>27. Quel est le rôle fondamental des molécules du Complexe Majeur d'Histocompatibilité (CMH) ?</summary>
+
+*   Le rôle fondamental des molécules du CMH est de **présenter des peptides antigéniques** (des fragments de protéines) à la surface des cellules afin qu'ils soient reconnus par les lymphocytes T.
+</details>
+
+<details>
+<summary>28. Expliquez la présentation antigénique en fonction du type de CMH et du lymphocyte T.</summary>
+
+*   Une molécule du **CMH de classe II** (présente sur les CPA professionnelles) présente un antigène aux lymphocytes T **CD4+**.
+*   Une molécule du **CMH de classe I** (présente sur toutes les cellules nucléées) présente un antigène (souvent viral ou tumoral) aux lymphocytes T **CD8+**.
+*   La **restriction par le CMH** signifie qu'un lymphocyte T donné ne reconnaît un peptide que s'il est présenté par une molécule du CMH de son propre individu.
+</details>
+
+<details>
+<summary>29. Quel est le rôle général des LT CD4+ (helpers) ? Nommez trois sous-populations et leur fonction.</summary>
+
+*   **Rôle général :** Les LT CD4+ sont les "chefs d'orchestre" de la réponse immunitaire adaptative. Ils aident les autres cellules (LB, LT CD8+, macrophages) à fonctionner.
+*   **Sous-populations :**
+    *   **Th1 :** Active les **macrophages** pour tuer les bactéries intracellulaires (immunité cellulaire).
+    *   **Th2 :** Aide les **lymphocytes B** à produire des anticorps et active les **éosinophiles** contre les helminthes (immunité humorale).
+    *   **Th17 :** Recrute des **neutrophiles** sur les sites d'infection (lutte contre les bactéries extracellulaires et les champignons).
+</details>
+
+<details>
+<summary>30. Comment les lymphocytes T CD8+ (cytotoxiques) tuent-ils leurs cellules cibles ?</summary>
+
+*   Ils tuent les cellules infectées ou tumorales principalement par deux mécanismes :
+    1.  **Voie perforine/granzyme :** Ils libèrent des protéines appelées **perforines** qui créent des pores dans la membrane de la cellule cible. Par ces pores, ils injectent des **granzymes**, des enzymes qui déclenchent l'**apoptose** (mort programmée) de la cellule.
+    2.  **Voie Fas/FasL :** Ils expriment à leur surface une molécule appelée **FasL** qui se lie à la molécule **Fas** sur la cellule cible, déclenchant également son apoptose.
+</details>
+
+---
+
+## Chapitre 7 : Immunité Anti-Infectieuse
+
+<details>
+<summary>31. Expliquez la phrase : "les anticorps contrôlent le virus libre, tandis que les cellules T et NK tuent les cellules infectées".</summary>
+
+*   **Les anticorps** agissent principalement dans le sang et la lymphe. Ils se lient aux particules virales libres (extracellulaires) pour les **neutraliser** (les empêcher d'infecter de nouvelles cellules).
+*   **Les LT CD8+ et les cellules NK** reconnaissent et détruisent les cellules de l'organisme qui sont déjà infectées par le virus, éliminant ainsi le "réservoir" viral.
+</details>
+
+<details>
+<summary>32. Quels sont les mécanismes de défense contre les bactéries extracellulaires et intracellulaires ?</summary>
+
+*   **Contre les bactéries extracellulaires :** Les principaux mécanismes sont les **anticorps** (neutralisation, opsonisation, activation du complément) et la **phagocytose** par les neutrophiles et macrophages.
+*   **Contre les bactéries intracellulaires :** La cellule clé est le **macrophage** activé par le lymphocyte T CD4+ de type **Th1** via la cytokine **IFNγ**. Cela permet au macrophage de tuer les bactéries dans ses phagosomes.
+</details>
+
+<details>
+<summary>33. Citez trois mécanismes par lesquels les pathogènes peuvent échapper au système immunitaire.</summary>
+
+*   **Variation antigénique :** Le pathogène change régulièrement ses antigènes de surface (ex: virus de la grippe, trypanosomes).
+*   **Mimétisme moléculaire :** Le pathogène arbore des antigènes qui ressemblent à ceux de l'hôte, ce qui rend difficile sa reconnaissance comme "non-soi".
+*   **Inhibition de la réponse immunitaire :** Le pathogène produit des substances qui inhibent l'activation du complément, la phagocytose, ou la réponse des cytokines (ex: VIH).
+*   **Latence :** Le pathogène reste dormant dans les cellules sans produire d'antigènes (ex: virus de l'herpès).
+</details>
+
+---
+
+## Chapitre 8 : Immunologie des Greffes et Déséquilibres de l'Immunité
+
+<details>
+<summary>34. Nommez et caractérisez brièvement les trois types de rejet de greffe.</summary>
+
+1.  **Rejet hyperaigu :** Survient en quelques minutes à heures. Dû à des anticorps préformés chez le receveur contre les antigènes du donneur. Entraîne une thrombose et une nécrose immédiate du greffon.
+2.  **Rejet aigu :** Survient en quelques jours à semaines. Dû à une réponse immunitaire cellulaire (LT) et humorale (Ac) du receveur contre le greffon.
+3.  **Rejet chronique :** Survient en quelques mois à années. Se caractérise par une fibrose et un épaississement des vaisseaux sanguins du greffon, conduisant à sa destruction lente.
+</details>
+
+<details>
+<summary>35. Donnez un exemple de déficit immunitaire primaire et un exemple de déficit secondaire.</summary>
+
+*   **Primaire (congénital) :** Déficit immunitaire combiné sévère (**SCID**), où il y a un déficit marqué en lymphocytes T et B.
+*   **Secondaire (acquis) :** Le **SIDA** (destruction des LT CD4+ par le VIH), la **malnutrition**, ou les patients sous **traitement immunosuppresseur**.
+</details>
+
+<details>
+<summary>36. Citez deux mécanismes par lesquels le VIH entraîne un déficit immunitaire.</summary>
+
+1.  **Effet cytopathogène direct :** Le virus se réplique dans les lymphocytes T CD4+ et les détruit.
+2.  **Destruction immunitaire :** Les lymphocytes T CD8+ tuent les LT CD4+ infectés.
+3.  **Apoptose :** De nombreux LT CD4+ non infectés meurent par apoptose.
+4.  **Anergie :** Les lymphocytes restants deviennent non fonctionnels.
+</details>
+
+<details>
+<summary>37. Expliquez le mécanisme général et un facteur déclenchant possible des maladies auto-immunes.</summary>
+
+*   **Mécanisme général :** Le système immunitaire perd sa capacité à distinguer le soi du non-soi (perte de tolérance). Des lymphocytes T et B autoréactifs sont activés et attaquent les tissus de l'organisme.
+*   **Facteur déclenchant possible :**
+    *   **Réaction croisée :** Une infection par un pathogène dont les antigènes ressemblent à ceux du soi (ex: RAA après infection streptococcique).
+    *   **Apparition de nouveaux antigènes du soi :** Dû à des mutations ou à des modifications de protéines.
+    *   **Levée de séquestration :** Des antigènes du soi normalement cachés (ex: dans l'œil, les testicules) sont libérés dans la circulation après un traumatisme.
+</details>
+
+<details>
+<summary>38. Définissez une réaction d'hypersensibilité et complétez le tableau de la classification de Gell et Coombs.</summary>
+
+*   **Définition :** Réaction immunitaire exagérée et inappropriée contre un antigène (souvent inoffensif), entraînant des lésions tissulaires.
+
+| Type | Nom | Délai | Médiateur Principal | Exemple |
+| :--- | :--- | :--- | :--- | :--- |
+| **I** | **Anaphylactique** | < 30 min | **IgE**, mastocytes | Choc anaphylactique, asthme allergique, rhinite |
+| **II** | **Cytotoxique** | 5-12 h | **IgG/IgM**, Complément | Anémie hémolytique auto-immune, maladie de Basedow |
+| **III** | **Semi-retardée (à complexes immuns)** | 3-8 h | **Complexes Ag-Ac**, Complément | Lupus érythémateux disséminé, glomérulonéphrite |
+| **IV** | **Retardée** | 24-72 h | **Lymphocytes T** | Eczéma de contact, test à la tuberculine |
+</details>
+
+---
+
+## Chapitre 9 : Applications Pratiques de l'Immunologie
+
+<details>
+<summary>39. Expliquez le principe de la réaction d'agglutination. Quelle classe d'anticorps est la plus efficace ?</summary>
+
+*   **Principe :** Mise en évidence d'anticorps ou d'antigènes par la formation d'amas visibles (agglutinats). Cela se produit lorsque l'antigène est sous forme particulaire (sur une cellule, une bactérie, une particule de latex). Les anticorps font le pont entre ces particules.
+*   **Classe d'anticorps la plus efficace :** Les **IgM** sont de très puissants agglutinants car leur structure pentamérique leur confère une grande avidité (10 sites de liaison).
+</details>
+
+<details>
+<summary>40. Sur quel principe immunologique repose un test de diagnostic rapide (TDR) de type immunochromatographie ?</summary>
+
+*   Il repose sur le principe de reconnaissance **antigène-anticorps** couplé à une migration sur membrane. L'échantillon (sang, urine) migre le long d'une bandelette. Si l'antigène recherché est présent, il se lie à des anticorps spécifiques marqués (par de l'or colloïdal par exemple). Le complexe migre ensuite et est capturé par un autre anticorps fixé sur la membrane au niveau de la ligne test, formant une bande colorée visible.
+</details>
+
+<details>
+<summary>41. La vaccination confère-t-elle une immunité active ou passive ? Quel est son but ? Citez trois critères d'efficacité.</summary>
+
+*   La vaccination confère une immunité **active** (et mémoire).
+*   **But :** La **prophylaxie**, c'est-à-dire la prévention des maladies infectieuses.
+*   **Critères d'efficacité d'un vaccin :**
+    1.  L'antigène doit être **immunogène**.
+    2.  La dose doit être **adaptée** (ni trop forte pour éviter la tolérance, ni trop faible).
+    3.  La voie d'administration doit être **efficace** (IM, SC souvent plus immunogènes que les voies orales).
+    4.  Il doit contenir des **adjuvants** pour stimuler la réponse.
+    5.  Il doit induire une **mémoire immunologique** durable.
+</details>
+
+<details>
+<summary>42. En quoi la sérothérapie diffère-t-elle de la vaccination ? Quelle est sa principale indication ?</summary>
+
+*   **Différence :** La sérothérapie est une immunisation **passive** (injection d'anticorps déjà prêts), alors que la vaccination est une immunisation **active** (l'individu produit ses propres anticorps).
+*   **Indication principale :** La sérothérapie est utilisée à but **thérapeutique** (post-exposition) ou en prophylaxie d'urgence. Elle procure une protection **immédiate** mais **temporaire**. (Ex: sérum antivenimeux, sérum antitétanique après une blessure chez un non-vacciné).
+</details>
+
+`;
+
+        // Conversion et affichage
+        document.getElementById('content').innerHTML = marked.parse(markdownContent);
+    </script>
+</body>
+</html
